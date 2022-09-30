@@ -1,4 +1,4 @@
-<script type="text/typescript">
+<script lang="ts">
   import SmallTable from "../SmallTable.svelte";
 
   const headings = ["Exercise", "Factor"]

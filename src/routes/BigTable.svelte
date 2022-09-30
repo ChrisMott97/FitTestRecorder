@@ -1,4 +1,4 @@
-<script type="text/typescript">
+<script lang="ts">
   export let headings: String[];
   export let data: Array<any>;
 </script>
