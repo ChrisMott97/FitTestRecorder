@@ -1,6 +1,9 @@
 <script lang="ts">
-  export let headings: String[];
+  import type { Heading } from './types'
+  export let headings: Heading[];
   export let data: Array<any>;
+
+
 </script>
 
 <div class="flex flex-col m-10">
@@ -10,11 +13,11 @@
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              {#each headings as heading}
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{heading}</th>
+              {#each headings as {label}}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</th>
               {/each}
               <th scope="col" class="relative px-6 py-3">
-                <span class="sr-only">Edit</span>
+                <span class="sr-only">Select</span>
               </th>
             </tr>
           </thead>
@@ -22,8 +25,8 @@
             <!-- Odd row -->
             {#each data as item, i}
             <tr class={i % 2 !== 0 ? "bg-gray-50": "bg-white"}>
-              {#each item as prop, j}
-                <td class={j === 0 ? "px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900":"px-6 py-4 whitespace-nowrap text-sm"}>{prop}</td>
+              {#each headings as {key}, j}
+                <td class={j === 0 ? "px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900":"px-6 py-4 whitespace-nowrap text-sm"}>{item[key]}</td>
               {/each}
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <a href="#" class="text-indigo-600 hover:text-indigo-900">Select</a>

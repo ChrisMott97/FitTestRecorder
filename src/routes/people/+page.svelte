@@ -1,16 +1,30 @@
 <script lang="ts">
 	import BigTable from '../BigTable.svelte';
   import Database from 'tauri-plugin-sql-api';
+  import type { Heading } from '../types'
   import { onMount } from 'svelte';
   import { open } from '@tauri-apps/api/dialog';
   import { fs } from '@tauri-apps/api';
   import { documentDir } from '@tauri-apps/api/path';
 
-	const headings = ['Name', 'Company', 'Location', 'Date Tested'];
-	let data: String[][] = [['Chris Mott', 'Howbout', 'London', '2022-09-24 17:00:00']];
-  let new_data: String[][] = [];
+  const headings: Heading[] = [
+    {key: 'name', label: 'Name'},
+    {key: 'company', label: 'Company'},
+    {key: 'location', label: 'Location'},
+    {key: 'testDate', label: 'Date Tested'}
+  ]
 
-  type fitTestRecord = {
+  type FitTestRecord = {
+    name: string,
+    company: string,
+    location: string,
+    testDate: string
+  }
+
+  let data: FitTestRecord[] = [];
+  let newData: FitTestRecord[] = [];
+
+  type FitTestField = {
     firstName: string,
     lastName: string,
     company: string,
@@ -21,18 +35,18 @@
 	onMount(async () => {
     console.log("mounting");
     
-    const db = await Database.load('sqlite:');
-    const res: fitTestRecord[] = await db.select('SELECT firstName, lastName, company, location, testDate from fitTestRecord');
+    const db = await Database.load('sqlite:new_database.db');
+    const res: FitTestField[] = await db.select('SELECT firstName, lastName, company, location, testDate from fitTestRecord');
     
     for (const person of res) {
-      new_data.push([
-        `${person.firstName} ${person.lastName}`,
-        person.company,
-        person.location,
-        person.testDate
-      ])
+      newData.push({
+        name: `${person.firstName} ${person.lastName}`,
+        company: person.company,
+        location: person.location,
+        testDate: new Date(person.testDate).toLocaleString()
+      })
     };
-    data = new_data;
+    data = newData;
 
   })
 
@@ -61,4 +75,4 @@
 </script>
 
 <p class="text-gray-500 text-center">Please select a person.</p>
-<BigTable {headings} bind:data />
+<BigTable {headings} {data} />

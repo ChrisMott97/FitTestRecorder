@@ -3,13 +3,31 @@
   import { open } from '@tauri-apps/api/dialog';
   import { fs } from '@tauri-apps/api';
   import { documentDir } from '@tauri-apps/api/path';
+  import { test } from './stores'
   import Database from 'tauri-plugin-sql-api';
+  import type { Heading } from './types'
 
 	import BigTable from './BigTable.svelte';
-	let headings = ['Name', 'Companies', 'Last Tested'];
-  let data = [['new_database', ['Hanson'], '2022-09-29 15:56:00']]
-  let new_data: string[][] = []
 
+  const headings: Heading[] = [
+    {key: 'name', label: 'Name'},
+    {key: 'companies', label: 'Companies'},
+    {key: 'testDate', label: 'Last Tested'}
+  ]
+
+  type DBFile = {
+    name: string,
+    companies: string[],
+    testDate: string
+  }
+
+  let data: DBFile[] = [
+    {name: 'new_database', companies: ['Hanson'], testDate: new Date("2022-09-29T15:56:00Z").toLocaleString()}
+  ]
+
+	// let headings = ['Name', 'Companies', 'Last Tested'];
+  // let data = [['new_database', ['Hanson'], '2022-09-29T15:56:00Z']]
+  let newData: DBFile[] = []
 
   let dbs:string[] = []
 
@@ -40,14 +58,23 @@
       const db = await Database.load('sqlite:'+dbFile);
       const testDateField: Array<{testDate: string}> = await db.select('SELECT testDate from fitTestRecord ORDER BY testDate DESC LIMIT 1');
       const companiesField: Array<{company: string}> = await db.select('select distinct company from fitTestRecord');
+      // TODO: replace with map
       let companies = [];
       for (const company of companiesField) {
         companies.push(Object.values(company)[0])
       }
 
-      new_data.push([dbFile.split('/').at(-1), companies, new Date(testDateField[0].testDate).toLocaleString()])
+      const dbFilename = dbFile.split('/').at(-1);
+      if(typeof dbFilename === 'string'){
+        newData.push({
+          name: dbFilename, 
+          companies: companies, 
+          testDate: new Date(testDateField[0].testDate).toLocaleString()
+        })
+      }
+
     }
-    data = new_data
+    data = newData
     
   })
 
