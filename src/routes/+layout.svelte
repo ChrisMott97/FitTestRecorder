@@ -1,5 +1,6 @@
 <script>
   import "../app.css";
+
 </script>
 <div class="container mx-auto lg:px-24">
   <h1 class="text-3xl font-bold text-center">RPAVerify</h1>

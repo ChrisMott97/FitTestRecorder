@@ -3,9 +3,7 @@
   import Database from 'tauri-plugin-sql-api';
   import type { Heading } from '../types'
   import { onMount } from 'svelte';
-  import { open } from '@tauri-apps/api/dialog';
-  import { fs } from '@tauri-apps/api';
-  import { documentDir } from '@tauri-apps/api/path';
+  import { testState } from '../stores'
 
   const headings: Heading[] = [
     {key: 'name', label: 'Name'},
@@ -15,16 +13,20 @@
   ]
 
   type FitTestRecord = {
-    name: string,
-    company: string,
-    location: string,
-    testDate: string
+    id: number,
+    visible:{
+      name: string,
+      company: string,
+      location: string,
+      testDate: string
+    }
   }
 
   let data: FitTestRecord[] = [];
   let newData: FitTestRecord[] = [];
 
   type FitTestField = {
+    id: number,
     firstName: string,
     lastName: string,
     company: string,
@@ -32,47 +34,45 @@
     testDate: string
   }
 
+  let db: Database;
+
+  const url = '/person'
+
 	onMount(async () => {
-    console.log("mounting");
-    
-    const db = await Database.load('sqlite:new_database.db');
-    const res: FitTestField[] = await db.select('SELECT firstName, lastName, company, location, testDate from fitTestRecord');
-    
-    for (const person of res) {
-      newData.push({
-        name: `${person.firstName} ${person.lastName}`,
-        company: person.company,
-        location: person.location,
-        testDate: new Date(person.testDate).toLocaleString()
-      })
-    };
-    data = newData;
+
+    testState.subscribe(async newTestState => {
+      let databaseURL = newTestState.database;
+      
+      db = await Database.load('sqlite:' + databaseURL);
+      const res: FitTestField[] = await db.select('SELECT id, firstName, lastName, company, location, testDate from fitTestRecord order by testDate desc');
+      
+      for (const person of res) {
+        newData.push({
+          id: person.id,
+          visible: {
+            name: `${person.firstName} ${person.lastName}`,
+            company: person.company,
+            location: person.location,
+            testDate: new Date(person.testDate).toLocaleString()
+          }
+        })
+      };
+      data = newData;
+    })
 
   })
 
+  function handleSelect(e: CustomEvent){
+    const idx = e.detail.number;
+    const id = data[idx].id;
 
-
-	// onMount(async () => {
-	// 	console.log('from the ts file!');
-	// 	// sqlite. The path is relative to `tauri::api::path::BaseDirectory::App`.
-	// 	Database.load('sqlite:new_database.db').then((db) => {
-	// 		db.select('SELECT firstName, lastName, company, location, testDate from fitTestRecord').then(
-	// 			(res: unknown) => {
-	// 				for (const person of res) {
-	// 					new_data.push([
-	// 						`${person.firstName} ${person.lastName}`,
-	// 						person.company,
-	// 						person.location,
-	// 						person.testDate
-	// 					]);
-	// 				}
-	// 				data = new_data;
-	// 			}
-	// 		);
-	// 	});
-	// });
+    testState.update((n)=>{
+      n.person.id = id;
+      return n
+    })
+  }
 
 </script>
 
 <p class="text-gray-500 text-center">Please select a person.</p>
-<BigTable {headings} {data} />
+<BigTable {headings} {data} {url} on:message={handleSelect}/>

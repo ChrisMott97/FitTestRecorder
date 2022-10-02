@@ -3,11 +3,16 @@
   import { open } from '@tauri-apps/api/dialog';
   import { fs } from '@tauri-apps/api';
   import { documentDir } from '@tauri-apps/api/path';
-  import { test } from './stores'
+  import { testState } from './stores'
   import Database from 'tauri-plugin-sql-api';
-  import type { Heading } from './types'
+  import type { Heading } from './types';
+  import { goto } from '$app/navigation';
 
 	import BigTable from './BigTable.svelte';
+  
+  const url = "/people";
+
+  let selected = "";
 
   const headings: Heading[] = [
     {key: 'name', label: 'Name'},
@@ -16,30 +21,21 @@
   ]
 
   type DBFile = {
-    name: string,
-    companies: string[],
-    testDate: string
+    visible: {
+      name: string,
+      companies: string[],
+      testDate: string
+    }
   }
 
-  let data: DBFile[] = [
-    {name: 'new_database', companies: ['Hanson'], testDate: new Date("2022-09-29T15:56:00Z").toLocaleString()}
-  ]
+  let data: DBFile[] = []
 
-	// let headings = ['Name', 'Companies', 'Last Tested'];
-  // let data = [['new_database', ['Hanson'], '2022-09-29T15:56:00Z']]
   let newData: DBFile[] = []
 
   let dbs:string[] = []
 
-  type companyInfo = {
-    firstName: string,
-    lastName: string,
-    company: string,
-    location: string,
-    testDate: string
-  }
-
   onMount(async ()=>{
+
     const selected = await open({
       directory: true,
       defaultPath: await documentDir()
@@ -55,7 +51,7 @@
     }
 
     for (const dbFile of dbs) {
-      const db = await Database.load('sqlite:'+dbFile);
+      const db = await Database.load('sqlite:' + dbFile);
       const testDateField: Array<{testDate: string}> = await db.select('SELECT testDate from fitTestRecord ORDER BY testDate DESC LIMIT 1');
       const companiesField: Array<{company: string}> = await db.select('select distinct company from fitTestRecord');
       // TODO: replace with map
@@ -67,9 +63,11 @@
       const dbFilename = dbFile.split('/').at(-1);
       if(typeof dbFilename === 'string'){
         newData.push({
-          name: dbFilename, 
-          companies: companies, 
-          testDate: new Date(testDateField[0].testDate).toLocaleString()
+          visible: {
+            name: dbFilename, 
+            companies: companies, 
+            testDate: new Date(testDateField[0].testDate).toLocaleString()
+          }
         })
       }
 
@@ -77,8 +75,17 @@
     data = newData
     
   })
+  
+  function handleSelect(e: CustomEvent){
+    const idx = e.detail.number;
+    testState.update((n)=>{
+      n.database = dbs[idx]
+      return n
+    })
+  }
 
 </script>
 
 <p class="text-gray-500 text-center">Please select a database.</p>
-<BigTable {headings} {data} />
+{selected}
+<BigTable {headings} {data} {url} on:message={handleSelect}/>
