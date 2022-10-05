@@ -1,17 +1,51 @@
 <script lang="ts">
   import SmallTable from "../SmallTable.svelte";
+  import type { Heading } from '../types'
+  import { onMount } from 'svelte';
+  import { testState } from '../stores'
+  import Database from 'tauri-plugin-sql-api';
 
-  const headings = ["Exercise", "Factor"]
-  const data = [
-    ["Normal Breathing", 7975],
-    ["Deep Breathing", 1028],
-    ["Head Side to Side", 2851],
-    ["Head Up and Down", 6775],
-    ["Talk Out Loud", 2957],
-    ["Bending Over", 5138],
-    ["Normal Breathing", 2670],
-    ["Final Fit Factor", 2749]
+  const headings: Heading[] = [
+    {label: "Exercise", key: "exercise"},
+    {label: "Factor", key: "factor"}
   ]
+
+  type ExerciseField = {
+    exercise: string,
+    factor: number
+  }
+
+  type Exercise = {
+    visible:{
+      exercise: string,
+      factor: number
+    }
+  }
+
+  let data: Exercise[] = [];
+  let newData: Exercise[] = [];
+
+  let db: Database;
+
+  onMount(async () => {
+    testState.subscribe(async newTestState => {
+      console.log("subscribing")
+      const id = newTestState.person.id;
+      db = await Database.load('sqlite:' + newTestState.database);
+
+      const numExercisesResult: {numExercises: number}[] = await db.select('SELECT numExercises from fitTestRecord where id = $1', [id])
+      const numExercises = numExercisesResult[0].numExercises;
+
+      const exercises: Exercise[] = new Array(numExercises);
+      for (let i = 0; i < numExercises; i++) {
+        const exercise: ExerciseField[] = await db.select(`select exercise${i+1} as exercise, fitFactor${i+1} as factor from fitTestRecord where id = $1`, [id])
+        exercises[i] = {visible: exercise[0]};
+      }
+      data = exercises;
+      console.log(exercises)
+    })
+  })
+
 </script>
 <div class="flex flex-row gap-4 pt-5">
   <div>
@@ -31,9 +65,9 @@
                       <textarea rows="4" name="comment" id="comment" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
                     </div>
                   </div>
-                  <div class="col-span-6">
+                  <div class="col-span-7">
                     <label for="signature" class="block text-sm font-medium text-gray-700">Signature</label>
-                    <canvas id="sig-canvas" width="500" height="160">
+                    <canvas id="sig-canvas" class="w-full h-50">
                       Get a better browser, bro.
                     </canvas>
                   </div>
