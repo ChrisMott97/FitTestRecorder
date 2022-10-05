@@ -11,7 +11,12 @@
   },
   "tauri": {
     "allowlist": {
-      "all": true
+      "all": true,
+      "fs": {
+        "scope": [
+          "$PUBLIC/Documents/TSI/fitpro"
+        ]
+      }
     },
     "bundle": {
       "active": true,
