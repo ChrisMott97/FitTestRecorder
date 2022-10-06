@@ -14,6 +14,7 @@
 
 	type FitTestRecord = {
 		id: number;
+		valid: boolean;
 		visible: {
 			name: string;
 			company: string;
@@ -32,6 +33,7 @@
 		company: string;
 		location: string;
 		testDate: string;
+		description: string;
 	};
 
 	let db: Database;
@@ -44,12 +46,13 @@
 
 			db = await Database.load('sqlite:' + databaseURL);
 			const res: FitTestField[] = await db.select(
-				'SELECT id, firstName, lastName, company, location, testDate from fitTestRecord where overallPass = 1 order by testDate desc'
+				'SELECT id, firstName, lastName, company, location, testDate, description from fitTestRecord where overallPass = 1 order by testDate desc'
 			);
 
 			for (const person of res) {
 				newData.push({
 					id: person.id,
+					valid: person.description.includes('verified'),
 					visible: {
 						name: `${person.firstName} ${person.lastName}`,
 						company: person.company,

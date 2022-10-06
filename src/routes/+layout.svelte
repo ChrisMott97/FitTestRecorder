@@ -2,7 +2,7 @@
   import "../app.css";
 
 </script>
-<div class="container mx-auto lg:px-24">
+<div class="container mx-auto">
   <h1 class="text-3xl font-bold text-center">RPAVerify</h1>
   <div class="text-center">
     <a href="/"><button class="border p-2 rounded">Home</button></a>

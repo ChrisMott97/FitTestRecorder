@@ -3,6 +3,8 @@
 	export let headings: Heading[];
 	export let data: Array<any & {visible: any}>;
 
+  
+
 
 </script>
 
@@ -21,9 +23,9 @@
           <tbody>
             <!-- Odd row -->
             {#each data as item, i}
-            <tr class={i % 2 !== 0 ? "bg-gray-50": "bg-white"}>
+            <tr class="capitalize last:odd:border-double last:even:border-double last:odd:border-t-4 last:even:border-t-4 even:bg-gray-50 odd:bg-white">
               {#each headings as {key}, j}
-                <td class={j === 0 ? "px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900":"px-6 py-4 whitespace-nowrap text-sm"}>{item.visible[key]}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm first:font-medium text-gray-900" class:text-red-500="{item.visible[key] > 100000}">{item.visible[key]}</td>
               {/each}
             </tr>
             {/each}

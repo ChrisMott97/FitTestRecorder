@@ -30,6 +30,8 @@
 	let db: Database;
 	let id = 0;
 
+	let warning: boolean = false;
+
 	async function save() {
 		const { rowsAffected } = await db.execute(
 			'update fitTestRecord set note = $1, description = $2 where id = $3',
@@ -49,10 +51,11 @@
 			id = newTestState.person.id;
 			db = await Database.load('sqlite:' + newTestState.database);
 
-			const numExercisesResult: { numExercises: number; overallFf: number; note: string }[] =
-				await db.select('SELECT numExercises, overallFf, note from fitTestRecord where id = $1', [
+			const numExercisesResult: { numExercises: number; overallFf: number; note: string; avgAmbient: number; }[] =
+				await db.select('SELECT * FROM fitTestRecord where id = $1', [
 					id
 				]);
+			console.log(numExercisesResult)
 			const numExercises = numExercisesResult[0].numExercises;
 
 			const exercises: Exercise[] = new Array(numExercises);
@@ -63,8 +66,15 @@
 					} as factor from fitTestRecord where id = $1`,
 					[id]
 				);
+				exercise[0].exercise = exercise[0].exercise.toLowerCase();
 				exercises[i] = { visible: exercise[0] };
 			}
+
+			// exercises.push({
+			// 	visible: { exercise: 'Avg Ambient', factor: numExercisesResult[0].avgAmbient }
+			// })
+
+			//avg ambient returning as null, may have to migrate to 
 
 			exercises.push({
 				visible: { exercise: 'Overall Fit Factor', factor: numExercisesResult[0].overallFf }
@@ -73,17 +83,42 @@
 			note = numExercisesResult[0].note;
 
 			data = exercises;
+
+			for (const e of exercises) {
+				if(e.visible.factor > 100000){
+					warning = true;
+					break;
+				}
+			}
 			console.log(exercises);
 		});
 	});
 </script>
 
-<div class="flex flex-row gap-4 pt-5">
-	<div>
+{#if warning}
+<div class="rounded-md bg-red-50 p-4">
+	<div class="flex">
+		<div class="flex-shrink-0">
+			<!-- Heroicon name: solid/exclamation -->
+			<svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+				<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+			</svg>
+		</div>
+		<div class="ml-3">
+			<h3 class="text-sm font-medium text-red-800">Attention needed!</h3>
+			<div class="mt-2 text-sm text-red-700">
+				<p>Abnormally high value detected, please ensure the appropriate additional tests have been done!</p>
+			</div>
+		</div>
+	</div>
+</div>
+{/if}
+<div class="gap-4 grid grid-cols-1 md:grid-cols-2 pt-2">
+	<div class="">
 		<SmallTable {headings} {data} />
 	</div>
-	<div>
-		<div class="">
+	<div class="">
+		<div>
 			<div class="md:grid md:grid-cols-3 md:gap-6">
 				<div class="mt-5 md:col-span-3 md:mt-0">
 					<form action="#" method="POST">
@@ -91,6 +126,7 @@
 							<div class="bg-white px-4 py-5 sm:p-6">
 								<div class="grid grid-cols-7 gap-6">
 									<div class="col-span-7">
+										
 										<label for="comment" class="block text-sm font-medium text-gray-700"
 											>Notes</label
 										>
