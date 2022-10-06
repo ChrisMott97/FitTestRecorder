@@ -28,11 +28,25 @@
 	let note: string = '';
 
 	let db: Database;
+	let id = 0;
+
+	async function save() {
+		const { rowsAffected } = await db.execute(
+			'update fitTestRecord set note = $1, description = $2 where id = $3',
+			[note, 'verified', id]
+		);
+
+		console.log('Success: ', Boolean(rowsAffected));
+	}
 
 	onMount(async () => {
 		testState.subscribe(async (newTestState) => {
+			if (newTestState.person.id == 0) {
+				return;
+			}
 			console.log('subscribing');
-			const id = newTestState.person.id;
+			console.log(newTestState.person.id);
+			id = newTestState.person.id;
 			db = await Database.load('sqlite:' + newTestState.database);
 
 			const numExercisesResult: { numExercises: number; overallFf: number; note: string }[] =
@@ -101,11 +115,13 @@
 								</div>
 							</div>
 							<div class="bg-gray-50 px-4 py-3 text-right sm:px-6">
-								<button
-									type="submit"
-									class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-									>Save</button
-								>
+								<a href="/">
+									<button
+										on:click={save}
+										class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+										>Complete</button
+									>
+								</a>
 							</div>
 						</div>
 					</form>
