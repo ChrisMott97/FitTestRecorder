@@ -4,6 +4,8 @@
 	import type { Heading } from '../types';
 	import { onMount } from 'svelte';
 	import { testState } from '../stores';
+	import Breadcrumb from '../Breadcrumb.svelte'
+	import { toTitleCase } from "../utilities";
 
 	const headings: Heading[] = [
 		{ key: 'name', label: 'Name' },
@@ -54,9 +56,9 @@
 					id: person.id,
 					valid: person.description.includes('verified'),
 					visible: {
-						name: `${person.firstName} ${person.lastName}`,
-						company: person.company,
-						location: person.location,
+						name: toTitleCase(`${person.firstName} ${person.lastName}`),
+						company: toTitleCase(person.company),
+						location: toTitleCase(person.location),
 						testDate: new Date(person.testDate).toLocaleString()
 					}
 				});
@@ -75,6 +77,12 @@
 		});
 	}
 </script>
-
-<p class="text-gray-500 text-center">Please select a person.</p>
+<Breadcrumb active={2}/>
+<div class="py-4">
+	<p class="text-gray-500 text-center pt-2 text-xl">Please select a person.</p>
+	<p class="text-gray-500 text-center pb-2 text-m">Records highlighted green have been verified already.</p>
+	<div class="text-left ml-20">
+		<a href="/"><button class="border py-2 px-6 rounded">Back</button></a>
+	</div>
+</div>
 <BigTable {headings} {data} {url} on:message={handleSelect} />

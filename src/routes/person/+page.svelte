@@ -2,8 +2,15 @@
 	import Database from 'tauri-plugin-sql-api';
 	import { onMount } from 'svelte';
 	import { testState } from '../stores';
+	import { fs } from '@tauri-apps/api';
+	import { documentDir, publicDir, sep } from '@tauri-apps/api/path';
+	import SignaturePad from 'signature_pad';
+	import Breadcrumb from '../Breadcrumb.svelte'
+	import { toTitleCase } from '../utilities'
+	import { updated } from '$app/stores';
 
 	let linesDisabled = [false, false, false];
+	const postPublicPath = `Documents${sep}TSI${sep}fitpro`;
 
 	type FitTestPerson = {
 		id: number;
@@ -49,27 +56,47 @@
 	let db: Database;
 	let masksArr: string[] = [];
 
+	let signaturePad: SignaturePad;
+	let signed = false;
+
 	function toggleLine(lineIndex: number) {
 		linesDisabled[lineIndex] = !linesDisabled[lineIndex];
 	}
 
 	async function save() {
+		const imgUrl = signaturePad.toDataURL();
+
+		// const file = await fs.readDir(postPublicPath, { dir: fs.BaseDirectory.Public });
+		const newDir = postPublicPath + sep + db.path.split(sep).at(-1)?.split('.').at(0);
+		fs.exists(newDir, { dir: fs.BaseDirectory.Public }).then((exists) => {
+			if (!exists) {
+				fs.createDir(newDir, { dir: fs.BaseDirectory.Public });
+			}
+		});
+
+		fetch(imgUrl)
+			.then((res) => res.blob())
+			.then((blob) => {
+				blob.arrayBuffer().then((aB) => {
+					fs.writeBinaryFile(
+						newDir +
+							sep +
+							`${updatedFitTestPerson.firstName}-${
+								updatedFitTestPerson.lastName
+							}-${updatedFitTestPerson.idNumber.replaceAll('/', '-')}.png`,
+						aB,
+						{ dir: fs.BaseDirectory.Public }
+					);
+				});
+			});
+
 		const maskInfo: Mask[] = await db.select(
 			'select maskManufacturer, maskModel, maskStyle, ffPassLevel, n95 from maskRecord where maskDescription = $1',
 			[updatedFitTestPerson.maskDescription]
 		);
-		// const maskCheck: {}[] = await db.select(
-		// 	'select maskManufacturer, maskModel, maskStyle, ffPassLevel, n95 from maskRecord where maskDescription = $1',
-		// 	[updatedFitTestPerson.maskDescription]
-		// );
-		// console.log(maskCheck[0].n95);
-		// maskCheck[0].n95 = maskCheck[0].n95 | 0;
-		// console.log(maskCheck[0].n95);
 
 		maskInfo[0].n95 = maskInfo[0].n95 | 0;
 		const { maskManufacturer, maskModel, maskStyle, ffPassLevel, n95 } = maskInfo[0];
-		console.log(fitTestPerson);
-		console.log(updatedFitTestPerson);
 
 		// update mask details
 		await db.execute(
@@ -157,15 +184,12 @@
 				console.log('Failed Update');
 			}
 		}
-
-		// isn't working
 	}
 
 	onMount(async () => {
 		testState.subscribe(async (newTestState) => {
-			console.log('subscribing');
 			const id = newTestState.person.id;
-			db = await Database.load('sqlite:' + newTestState.database);
+			db = Database.get('sqlite:' + newTestState.database);
 			const fitTestPeople: FitTestPerson[] = await db.select(
 				'SELECT id, idNumber, firstName, lastName, company, location, maskDescription, maskSize from fitTestRecord where id = $1',
 				[id]
@@ -177,11 +201,37 @@
 			fitTestPerson = fitTestPeople[0];
 			//replace json with something else to copy?
 			updatedFitTestPerson = JSON.parse(JSON.stringify(fitTestPeople[0]));
+			updatedFitTestPerson.firstName = toTitleCase(updatedFitTestPerson.firstName)
+			updatedFitTestPerson.lastName = toTitleCase(updatedFitTestPerson.lastName)
+			updatedFitTestPerson.company = toTitleCase(updatedFitTestPerson.company)
+			updatedFitTestPerson.location = toTitleCase(updatedFitTestPerson.location)
 		});
-	});
-</script>
+		const canvas = document.querySelector('canvas') as HTMLCanvasElement;
 
-<div class="mt-5 md:px-20">
+		signaturePad = new SignaturePad(canvas);
+		signaturePad.addEventListener('endStroke', (e) => {
+			signed = !signaturePad.isEmpty();
+		});
+
+	});
+
+	function clear() {
+		signed = false;
+		signaturePad.clear();
+	}
+
+</script>
+<Breadcrumb active={3}/>
+<div class="py-4">
+	<p class="text-gray-500 text-center py-2 text-xl">
+		This page must be completed by the client.
+	</p>
+	<p class="text-gray-500 text-center pb2 text-m">Please correct each field, click confirm to lock in details and sign.</p>
+	<div class="text-left ml-20">
+		<a href="/people"><button class="border py-2 px-6 rounded">Back</button></a>
+	</div>
+</div>
+<div class="md:px-20">
 	<div class="md:grid md:grid-cols-3 md:gap-6">
 		<div class="mt-5 md:col-span-3 md:mt-0">
 			<form action="#" method="POST">
@@ -309,11 +359,17 @@
 								</button>
 							</div>
 
-							<div class="col-span-7">
+							<div class="col-span-7 text-center flex flex-col items-center">
 								<label for="signature" class="block text-sm font-medium text-gray-700"
 									>Signature</label
 								>
-								<canvas id="sig-canvas" class="w-full h-40"> Get a better browser, bro. </canvas>
+								<canvas id="sig-canvas" width="500px"> Get a better browser, bro. </canvas>
+								<button
+									type="button"
+									on:click={clear}
+									class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-300"
+									>Clear Signature</button
+								>
 							</div>
 						</div>
 						<p class="text-gray-500 text-center">Please pass the laptop back to the operator.</p>
@@ -323,11 +379,11 @@
 						<a href="/operator">
 							<button
 								on:click={save}
-								disabled={!linesDisabled.every((line) => line)}
+								disabled={!(linesDisabled.every((line) => line) && signed)}
 								class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-300"
-								>{linesDisabled.every((line) => line)
+								>{linesDisabled.every((line) => line) && signed
 									? 'Continue'
-									: 'Confirm all information is correct to continue.'}</button
+									: 'Confirm all information is correct and sign to continue.'}</button
 							>
 						</a>
 					</div>

@@ -14,8 +14,14 @@
       "all": true,
       "fs": {
         "scope": [
-          "$PUBLIC/Documents/TSI/fitpro"
+          "$PUBLIC/Documents/TSI/fitpro/*",
+          "$PUBLIC/Documents/TSI/fitpro",
+          "$CONFIG/RPAVerify",
+          "$CONFIG/RPAVerify/*"
         ]
+      },
+      "shell":{
+        "all": true
       }
     },
     "bundle": {
