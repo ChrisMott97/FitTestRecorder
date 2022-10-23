@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Database from 'tauri-plugin-sql-api';
+	import SQLite from 'tauri-plugin-sqlite-api';
 	import { onMount } from 'svelte';
 	import { testState } from '../stores';
 	import { fs } from '@tauri-apps/api';
@@ -8,6 +8,8 @@
 	import Breadcrumb from '../Breadcrumb.svelte'
 	import { toTitleCase } from '../utilities'
 	import { updated } from '$app/stores';
+	import { trace, info, error } from 'tauri-plugin-log-api'
+
 
 	let linesDisabled = [false, false, false];
 	const postPublicPath = `Documents${sep}TSI${sep}fitpro`;
@@ -53,23 +55,26 @@
 		maskSize: ''
 	};
 
-	let db: Database;
+	let db: SQLite;
 	let masksArr: string[] = [];
 
 	let signaturePad: SignaturePad;
 	let signed = false;
 
 	function toggleLine(lineIndex: number) {
+		info("Person page: toggle line "+lineIndex)
 		linesDisabled[lineIndex] = !linesDisabled[lineIndex];
 	}
 
 	async function save() {
+		info("Person page: saving")
 		const imgUrl = signaturePad.toDataURL();
 
 		// const file = await fs.readDir(postPublicPath, { dir: fs.BaseDirectory.Public });
 		const newDir = postPublicPath + sep + db.path.split(sep).at(-1)?.split('.').at(0);
 		fs.exists(newDir, { dir: fs.BaseDirectory.Public }).then((exists) => {
 			if (!exists) {
+				info("Person page: directory doesn't exist for signatures")
 				fs.createDir(newDir, { dir: fs.BaseDirectory.Public });
 			}
 		});
@@ -78,6 +83,7 @@
 			.then((res) => res.blob())
 			.then((blob) => {
 				blob.arrayBuffer().then((aB) => {
+					info("Person page: writing signature png")
 					fs.writeBinaryFile(
 						newDir +
 							sep +
@@ -99,6 +105,7 @@
 		const { maskManufacturer, maskModel, maskStyle, ffPassLevel, n95 } = maskInfo[0];
 
 		// update mask details
+		info("Person page: updating mask info")
 		await db.execute(
 			'UPDATE fitTestRecord SET maskSize = $1, maskManufacturer = $2, maskModel = $3, maskStyle = $4, maskDescription = $5, ffPassLevel = $6, n95 = $7 WHERE id = $8',
 			[
@@ -112,15 +119,16 @@
 				fitTestPerson.id
 			]
 		);
+		info("Person page: updating fitTestRecord info")
 
 		// update personal details on all records
 		await db.execute(
 			'UPDATE fitTestRecord SET firstName = $1, lastName = $2, company = $3, location = $4 WHERE firstName = $5 and lastName = $6 and company = $7 and location = $8',
 			[
-				updatedFitTestPerson.firstName,
-				updatedFitTestPerson.lastName,
-				updatedFitTestPerson.company,
-				updatedFitTestPerson.location,
+				toTitleCase(updatedFitTestPerson.firstName),
+				toTitleCase(updatedFitTestPerson.lastName),
+				toTitleCase(updatedFitTestPerson.company),
+				toTitleCase(updatedFitTestPerson.location),
 				fitTestPerson.firstName,
 				fitTestPerson.lastName,
 				fitTestPerson.company,
@@ -147,14 +155,15 @@
 				idNumberVariant3 = idNumberSplitVariant3.join('/');
 			}
 		}
+		info("Person page: updating peopleRecord info")
 
-		const { rowsAffected } = await db.execute(
+		const success = await db.execute(
 			'UPDATE peopleRecord SET firstName = $1, lastName = $2, company = $3, location = $4 WHERE firstName = $5 AND lastName = $6 AND company = $7 AND location = $8 AND (idNumber = $9 OR idNumber = $10 OR idNumber = $11 OR idNumber = $12)',
 			[
-				updatedFitTestPerson.firstName,
-				updatedFitTestPerson.lastName,
-				updatedFitTestPerson.company,
-				updatedFitTestPerson.location,
+				toTitleCase(updatedFitTestPerson.firstName),
+				toTitleCase(updatedFitTestPerson.lastName),
+				toTitleCase(updatedFitTestPerson.company),
+				toTitleCase(updatedFitTestPerson.location),
 				fitTestPerson.firstName,
 				fitTestPerson.lastName,
 				fitTestPerson.company,
@@ -166,30 +175,33 @@
 			]
 		);
 
-		if (rowsAffected == 0) {
-			const { rowsAffected: success } = await db.execute(
+		if (!success) {
+			info("Person page: updating peopleRecord info backup")
+
+			const success = await db.execute(
 				'UPDATE peopleRecord SET firstName = $1, lastName = $2, company = $3, location = $4 WHERE firstName = $5 AND lastName = $6 AND company = $7 AND location = $8',
 				[
-					updatedFitTestPerson.firstName,
-					updatedFitTestPerson.lastName,
-					updatedFitTestPerson.company,
-					updatedFitTestPerson.location,
+					toTitleCase(updatedFitTestPerson.firstName),
+					toTitleCase(updatedFitTestPerson.lastName),
+					toTitleCase(updatedFitTestPerson.company),
+					toTitleCase(updatedFitTestPerson.location),
 					fitTestPerson.firstName,
 					fitTestPerson.lastName,
 					fitTestPerson.company,
 					fitTestPerson.location
 				]
 			);
-			if (success == 0) {
-				console.log('Failed Update');
+			if (!success) {
+				error("Person page: Failed backup update")
 			}
 		}
 	}
 
-	onMount(async () => {
+	async function initialise(){
+		info("Person page: load initial information")
 		testState.subscribe(async (newTestState) => {
 			const id = newTestState.person.id;
-			db = Database.get('sqlite:' + newTestState.database);
+			db = await SQLite.open(newTestState.database);
 			const fitTestPeople: FitTestPerson[] = await db.select(
 				'SELECT id, idNumber, firstName, lastName, company, location, maskDescription, maskSize from fitTestRecord where id = $1',
 				[id]
@@ -212,12 +224,22 @@
 		signaturePad.addEventListener('endStroke', (e) => {
 			signed = !signaturePad.isEmpty();
 		});
+	}
 
+	onMount(async () => {
+		initialise();
 	});
 
 	function clear() {
+		info("Person page: signature pad cleared")
 		signed = false;
 		signaturePad.clear();
+	}
+
+	function reset(){
+		info("Person page: reset details")
+		linesDisabled = [false, false, false]
+		initialise();
 	}
 
 </script>
@@ -227,8 +249,14 @@
 		This page must be completed by the client.
 	</p>
 	<p class="text-gray-500 text-center pb2 text-m">Please correct each field, click confirm to lock in details and sign.</p>
-	<div class="text-left ml-20">
-		<a href="/people"><button class="border py-2 px-6 rounded">Back</button></a>
+	<div class="flex">
+
+		<div class="text-left ml-20">
+			<a href="/people"><button class="border py-2 px-6 rounded">Back</button></a>
+		</div>
+		<div class="text-left ml-2">
+			<button on:click={reset} class="border py-2 px-6 rounded bg-red-300">Reset</button>
+		</div>
 	</div>
 </div>
 <div class="md:px-20">
@@ -245,6 +273,7 @@
 								<input
 									disabled={linesDisabled[0]}
 									bind:value={updatedFitTestPerson.firstName}
+									required
 									type="text"
 									name="first-name"
 									id="first-name"
@@ -269,8 +298,9 @@
 							<div class="col-span-1 flex flex-col justify-end items-center">
 								<button
 									on:click={() => toggleLine(0)}
+									disabled={!updatedFitTestPerson.firstName || !updatedFitTestPerson.lastName}
 									type="button"
-									class="inline-flex items-center px-4 py-1.5 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+									class="inline-flex items-center px-4 py-1.5 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300"
 								>
 									{linesDisabled[0] ? 'Unlock' : 'Confirm'}
 								</button>
@@ -303,8 +333,9 @@
 							<div class="col-span-1 flex flex-col justify-end items-center">
 								<button
 									on:click={() => toggleLine(1)}
+									disabled={!updatedFitTestPerson.company || !updatedFitTestPerson.location}
 									type="button"
-									class="inline-flex items-center px-4 py-1.5 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+									class="inline-flex items-center px-4 py-1.5 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300"
 								>
 									{linesDisabled[1] ? 'Unlock' : 'Confirm'}
 								</button>
@@ -372,7 +403,8 @@
 								>
 							</div>
 						</div>
-						<p class="text-gray-500 text-center">Please pass the laptop back to the operator.</p>
+						<p class="text-gray-500 text-center text-xl">Please pass the laptop back to the operator.</p>
+						<p class="text-gray-500 text-center">These details must be correct as you cannot return to this page!</p>
 					</div>
 
 					<div class="bg-gray-50 px-4 py-3 text-right sm:px-6">

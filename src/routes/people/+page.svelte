@@ -1,11 +1,13 @@
 <script lang="ts">
 	import BigTable from '../BigTable.svelte';
-	import Database from 'tauri-plugin-sql-api';
+	import SQLite from 'tauri-plugin-sqlite-api';
 	import type { Heading } from '../types';
 	import { onMount } from 'svelte';
 	import { testState } from '../stores';
 	import Breadcrumb from '../Breadcrumb.svelte'
 	import { toTitleCase } from "../utilities";
+	import { trace, info, error } from 'tauri-plugin-log-api'
+
 
 	const headings: Heading[] = [
 		{ key: 'name', label: 'Name' },
@@ -38,7 +40,7 @@
 		description: string;
 	};
 
-	let db: Database;
+	let db: SQLite;
 
 	const url = '/person';
 
@@ -46,7 +48,7 @@
 		testState.subscribe(async (newTestState) => {
 			let databaseURL = newTestState.database;
 
-			db = await Database.load('sqlite:' + databaseURL);
+			db = await SQLite.open(databaseURL);
 			const res: FitTestField[] = await db.select(
 				'SELECT id, firstName, lastName, company, location, testDate, description from fitTestRecord where overallPass = 1 order by testDate desc'
 			);
@@ -63,6 +65,7 @@
 					}
 				});
 			}
+			info("People page: Gather people: "+JSON.stringify(newData))
 			data = newData;
 		});
 	});
@@ -73,6 +76,7 @@
 
 		testState.update((n) => {
 			n.person.id = id;
+			info("People page: State update: "+JSON.stringify(n))
 			return n;
 		});
 	}

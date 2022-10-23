@@ -3,18 +3,21 @@
 	import type { Heading } from '../types';
 	import { onMount } from 'svelte';
 	import { testState } from '../stores';
-	import Database from 'tauri-plugin-sql-api';
+	import SQLite from 'tauri-plugin-sqlite-api';
 	import SignaturePad from 'signature_pad';
 	import { fs } from '@tauri-apps/api';
 	import { documentDir, publicDir, sep } from '@tauri-apps/api/path';
-	import Breadcrumb from '../Breadcrumb.svelte'
-	import { invoke } from '@tauri-apps/api/tauri'
+	import Breadcrumb from '../Breadcrumb.svelte';
+	import { invoke } from '@tauri-apps/api/tauri';
+	import { trace, info, error } from 'tauri-plugin-log-api'
+
 
 	const headings: Heading[] = [
 		{ label: 'Exercise', key: 'exercise' },
 		{ label: 'Factor', key: 'factor' }
 	];
-	const postPublicPath = `RPAVerify`;
+	const postConfigPath = `RPAVerify`;
+	const postPublicPath = `Documents${sep}TSI${sep}fitpro`;
 
 	type ExerciseField = {
 		exercise: string;
@@ -33,7 +36,7 @@
 
 	let note: string = '';
 
-	let db: Database;
+	let db: SQLite;
 	let id = 0;
 
 	let signaturePad: SignaturePad;
@@ -43,8 +46,9 @@
 	let warning: boolean = false;
 
 	async function save() {
+		info("Operator page: saving")
 		const imgData = signaturePad.toData();
-		const newDir = postPublicPath;
+		const newDir = postConfigPath;
 		if (newSignature) {
 			fs.exists(newDir, { dir: fs.BaseDirectory.Config }).then((dir) => {
 				if (!dir) {
@@ -55,14 +59,43 @@
 				});
 			});
 		}
-		
 
-		const { rowsAffected } = await db.execute(
+		db.select('select firstName, lastName, idNumber, operator from fitTestRecord where id = ?', [id]).then(
+			(res) => {
+				const imgUrl = signaturePad.toDataURL();
+
+				// const file = await fs.readDir(postConfigPath, { dir: fs.BaseDirectory.Public });
+				const newDir = postPublicPath + sep + db.path.split(sep).at(-1)?.split('.').at(0);
+				fs.exists(newDir, { dir: fs.BaseDirectory.Public }).then((exists) => {
+					if (!exists) {
+						fs.createDir(newDir, { dir: fs.BaseDirectory.Public });
+					}
+				});
+				console.log(res)
+				fetch(imgUrl)
+					.then((res) => res.blob())
+					.then((blob) => {
+						blob.arrayBuffer().then((aB) => {
+							fs.writeBinaryFile(
+								newDir +
+									sep +
+									`${res[0].firstName}-${
+										res[0].lastName
+									}-${res[0].idNumber.replaceAll('/', '-')}-Operator-${res[0].operator}.png`,
+								aB,
+								{ dir: fs.BaseDirectory.Public }
+							);
+						});
+					});
+			}
+		);
+
+		const success = await db.execute(
 			'update fitTestRecord set note = $1, description = $2 where id = $3',
 			[note, 'verified', id]
 		);
 
-		console.log('Success: ', Boolean(rowsAffected));
+		console.log('Success: ', success);
 	}
 
 	onMount(async () => {
@@ -72,7 +105,7 @@
 			newSignature = true;
 			signed = true;
 		});
-		const newDir = postPublicPath;
+		const newDir = postConfigPath;
 		fs.exists(newDir, { dir: fs.BaseDirectory.Config }).then((dir) => {
 			if (!dir) {
 				fs.createDir(newDir, { dir: fs.BaseDirectory.Config });
@@ -98,7 +131,7 @@
 			console.log('subscribing');
 			console.log(newTestState.person.id);
 			id = newTestState.person.id;
-			db = await Database.load('sqlite:' + newTestState.database);
+			db = await SQLite.open(newTestState.database);
 
 			const numExercisesResult: {
 				numExercises: number;
@@ -106,10 +139,6 @@
 				note: string;
 				avgAmbient: number;
 			}[] = await db.select('SELECT * FROM fitTestRecord where id = $1', [id]);
-			invoke('get_avg_ambient').then((res)=>{
-				console.log(res)
-			})
-
 
 			console.log(numExercisesResult);
 			const numExercises = numExercisesResult[0].numExercises;
@@ -133,6 +162,9 @@
 			//avg ambient returning as null, may have to migrate to
 
 			exercises.push({
+				visible: { exercise: 'Average Ambient', factor: numExercisesResult[0].avgAmbient }
+			});
+			exercises.push({
 				visible: { exercise: 'Overall Fit Factor', factor: numExercisesResult[0].overallFf }
 			});
 
@@ -151,19 +183,21 @@
 	});
 
 	function clear() {
+		info("Operator page: clear signature")
 		signed = false;
 		signaturePad.clear();
 	}
 </script>
-<Breadcrumb active={4}/>
+
+<Breadcrumb active={4} />
 <div class="py-4">
-	<p class="text-gray-500 text-center py-2 text-xl">
-		This page must be completed by the operator.
+	<p class="text-gray-500 text-center py-2 text-xl">This page must be completed by the operator.</p>
+	<p class="text-gray-500 text-center py-2 text-m">
+		Please ensure all notes are written and signed for.
 	</p>
-	<p class="text-gray-500 text-center py-2 text-m">Please ensure all notes are written and signed for.</p>
-	<div class="text-left ml-20">
+	<!-- <div class="text-left ml-20">
 		<a href="/person"><button class="border py-2 px-6 rounded">Back</button></a>
-	</div>
+	</div> -->
 </div>
 {#if warning}
 	<div class="rounded-md bg-red-50 p-4 mx-20">
@@ -242,9 +276,7 @@
 										on:click={save}
 										disabled={!signed}
 										class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-300"
-										>{signed
-											? 'Complete'
-											: 'Please sign to complete'}</button
+										>{signed ? 'Complete' : 'Please sign to complete'}</button
 									>
 								</a>
 							</div>

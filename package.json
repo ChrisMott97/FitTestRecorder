@@ -36,6 +36,8 @@
 	"dependencies": {
 		"@tailwindcss/forms": "^0.5.3",
 		"signature_pad": "^4.0.9",
-		"tauri-plugin-sql-api": "github:tauri-apps/tauri-plugin-sql"
+		"tauri-plugin-log-api": "github:tauri-apps/tauri-plugin-log#dev",
+		"tauri-plugin-sql-api": "github:tauri-apps/tauri-plugin-sql",
+		"tauri-plugin-sqlite-api": "github:lzdyes/tauri-plugin-sqlite#v0.1.1"
 	}
 }
