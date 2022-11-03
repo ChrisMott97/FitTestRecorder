@@ -1,4 +1,6 @@
 name: "publish"
+env:
+  TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
 on:
   push:
     branches:
