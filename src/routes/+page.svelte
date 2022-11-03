@@ -10,7 +10,7 @@
 	import { goto } from '$app/navigation';
 	import { toTitleCase } from './utilities';
 	import { open as openInExplorer } from '@tauri-apps/api/shell';
-	import { trace, info, error } from 'tauri-plugin-log-api'
+	import { trace, info, error } from 'tauri-plugin-log-api';
 
 	import BigTable from './BigTable.svelte';
 	import Breadcrumb from './Breadcrumb.svelte';
@@ -88,8 +88,8 @@
 		}
 	};
 
-	async function gatherData(){
-		info("Landing page: gathering data")
+	async function gatherData() {
+		info('Landing page: gathering data');
 		databases = [];
 		data = [];
 		newData = [];
@@ -97,7 +97,7 @@
 
 		//TODO: change database adapter to be able to close connection
 		const dirFiles = await fs.readDir(postPublicPath, { dir: fs.BaseDirectory.Public });
-		console.log(dirFiles)
+		console.log(dirFiles);
 		for (const file of dirFiles) {
 			if (file.path.split('.').at(-1) === 'db') {
 				potentialDatabases.push(file.path);
@@ -112,21 +112,20 @@
 			// 	db = await Database.load('sqlite:' + potentialDatabase)
 			// }
 			const db = await SQLite.open(potentialDatabase);
-			
+
 			//TODO: handle not an sqlite file
 
 			const latestTestArray: Array<FitTestField> = await db.select(
 				'SELECT id, firstName, lastName, company, location, testDate, description from fitTestRecord where overallPass = 1 order by testDate desc limit 1'
 			);
 			if (latestTestArray.length == 0) continue;
-			info("Landing page: successful latest test find "+potentialDatabase)
-
+			info('Landing page: successful latest test find ' + potentialDatabase);
 
 			const companiesField: Array<{ company: string }> = await db.select(
 				'select distinct company from fitTestRecord'
 			);
 			if (companiesField.length == 0) continue;
-			info("Landing page: successful companies find "+potentialDatabase)
+			info('Landing page: successful companies find ' + potentialDatabase);
 
 			const latestTest: FitTestField = latestTestArray[0];
 			latestTest.firstName = toTitleCase(latestTest.firstName);
@@ -134,14 +133,15 @@
 			latestTest.company = toTitleCase(latestTest.company);
 			latestTest.location = toTitleCase(latestTest.location);
 
-
 			if (!newestTestDate || new Date(latestTest.testDate) > new Date(newestTestDate)) {
 				newestDbFile = potentialDatabase;
 				newestTestDate = latestTest.testDate;
 				newestTestPerson = latestTest;
 			}
 
-			const companies = companiesField.map((company) => toTitleCase(Object.values(company).at(0) as string)) as string[];
+			const companies = companiesField.map((company) =>
+				toTitleCase(Object.values(company).at(0) as string)
+			) as string[];
 
 			const dbFilename = potentialDatabase.split(sep).at(-1);
 			if (typeof dbFilename === 'string') {
@@ -167,7 +167,7 @@
 				location: newestTestPerson.location,
 				testDate: new Date(newestTestDate).toLocaleString()
 			}
-		}
+		};
 
 		data = newData;
 	}
@@ -178,43 +178,56 @@
 		const idx = e.detail.number;
 		testState.update((n) => {
 			n.database = databases[idx];
-			info("Landing page: Selected a database")
-			info("Landing page: State update: "+ JSON.stringify(n))
+			info('Landing page: Selected a database');
+			info('Landing page: State update: ' + JSON.stringify(n));
 			return n;
 		});
 	}
 
 	function handleSelected() {
-		testState.update((n)=>{
+		testState.update((n) => {
 			n.database = suggestedPerson.url;
 			n.person.id = suggestedPerson.id;
-			info("Landing page: Selected suggested person + database")
-			info("Landing page: State updated"+JSON.stringify(n))
+			info('Landing page: Selected suggested person + database');
+			info('Landing page: State updated' + JSON.stringify(n));
 			return n;
-		})
+		});
 	}
 
-	async function openFolder(event:Event){
+	async function openFolder(event: Event) {
 		// opens a file using the default program:
-		if(event.shiftKey){
-			info("Landing page: Opening logs folder")
-			await openInExplorer(await path.logDir())
-		}else{
-			info("Landing page: Opening database folder")
-			const url = await path.publicDir() + postPublicPath
-			openInExplorer(url).then(console.log).catch(console.log)
+		if (event.shiftKey) {
+			info('Landing page: Opening logs folder');
+			await openInExplorer(await path.logDir());
+		} else {
+			info('Landing page: Opening database folder');
+			const url = (await path.publicDir()) + postPublicPath;
+			openInExplorer(url).then(console.log).catch(console.log);
 		}
 	}
 </script>
-<Breadcrumb active={1}/>
+
+<Breadcrumb active={1} />
 <div class="py-4">
-	<p class="text-gray-500 text-center pt-2 text-xl">The suggested test below is the last test done - if this isn't up to date, click the Refresh button.</p>
-	<p class="text-gray-500 text-center pb-2 text-m">If it is highlighted, it has already been verified.</p>
+	<p class="text-gray-500 text-center pt-2 text-xl">
+		The suggested test below is the last test done - if this isn't up to date, click the Refresh
+		button.
+	</p>
+	<p class="text-gray-500 text-center pb-2 text-m">
+		If it is highlighted, it has already been verified.
+	</p>
 	<div class="text-left ml-20">
 		<button on:click={gatherData} class="border py-2 px-6 rounded" type="button">Refresh</button>
-		<button on:click={openFolder} class="border py-2 px-6 rounded" type="button">Open Database Folder</button>
+		<button on:click={openFolder} class="border py-2 px-6 rounded" type="button"
+			>Open Database/Signatures Folder</button
+		>
 	</div>
 </div>
-<BigTable headings={suggestedHeadings} data={[suggestedPerson]} url={suggestedUrl} on:message={handleSelected} />
-<p class="text-gray-500 text-center py-8 text-xl">- OR - <br/> Select a database file manually</p>
+<BigTable
+	headings={suggestedHeadings}
+	data={[suggestedPerson]}
+	url={suggestedUrl}
+	on:message={handleSelected}
+/>
+<p class="text-gray-500 text-center py-8 text-xl">- OR - <br /> Select a database file manually</p>
 <BigTable {headings} {data} {url} on:message={handleSelect} />
