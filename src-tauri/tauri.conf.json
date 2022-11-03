@@ -9,14 +9,6 @@
     "productName": "RPAVerify",
     "version": "0.1.0"
   },
-  "updater": {
-    "active": true,
-    "endpoints": [
-        "https://tauri-update-server.chrisamott97.workers.dev/v1/{{current_version}}"
-    ],
-    "dialog": true,
-    "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ4Qzk0OEYxQTgzQzIzMjMKUldRakl6eW84VWpKMk9uR0orMk45M0xROW9xbzRVcVRWeFBVS1RPZTVnVHRKMS9EM1BGUHpLbzIK"
-},
   "tauri": {
     "allowlist": {
       "all": true,
@@ -70,8 +62,13 @@
       "csp": null
     },
     "updater": {
-      "active": false
-    },
+      "active": true,
+      "endpoints": [
+          "https://tauri-update-server.chrisamott97.workers.dev/v1/{{current_version}}"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ4Qzk0OEYxQTgzQzIzMjMKUldRakl6eW84VWpKMk9uR0orMk45M0xROW9xbzRVcVRWeFBVS1RPZTVnVHRKMS9EM1BGUHpLbzIK"
+  },
     "windows": [
       {
         "fullscreen": false,
