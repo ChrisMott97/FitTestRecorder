@@ -202,6 +202,12 @@
 		} else {
 			info('Landing page: Opening database folder');
 			const url = (await path.publicDir()) + postPublicPath;
+			fs.exists(postPublicPath, { dir: fs.BaseDirectory.Public }).then((exists) => {
+				if (!exists) {
+					info("Landing page: directory doesn't exist for databases");
+					fs.createDir(postPublicPath, { dir: fs.BaseDirectory.Public });
+				}
+			});
 			openInExplorer(url).then(console.log).catch(console.log);
 		}
 	}
@@ -209,25 +215,37 @@
 
 <Breadcrumb active={1} />
 <div class="py-4">
-	<p class="text-gray-500 text-center pt-2 text-xl">
-		The suggested test below is the last test done - if this isn't up to date, click the Refresh
-		button.
-	</p>
-	<p class="text-gray-500 text-center pb-2 text-m">
-		If it is highlighted, it has already been verified.
-	</p>
+	{#if suggestedPerson.visible.database}
+		<p class="text-gray-500 text-center pt-2 text-xl">
+			The suggested test below is the last test done - if this isn't up to date, click the Refresh
+			button.
+		</p>
+		<p class="text-gray-500 text-center pb-2 text-m">
+			If it is highlighted, it has already been verified.
+		</p>
+	{/if}
 	<div class="text-left ml-20">
 		<button on:click={gatherData} class="border py-2 px-6 rounded" type="button">Refresh</button>
 		<button on:click={openFolder} class="border py-2 px-6 rounded" type="button"
-			>Open Database/Signatures Folder</button
+			>Open Database and Signatures Folder</button
 		>
 	</div>
 </div>
-<BigTable
-	headings={suggestedHeadings}
-	data={[suggestedPerson]}
-	url={suggestedUrl}
-	on:message={handleSelected}
-/>
-<p class="text-gray-500 text-center py-8 text-xl">- OR - <br /> Select a database file manually</p>
-<BigTable {headings} {data} {url} on:message={handleSelect} />
+{#if suggestedPerson.visible.database}
+	<BigTable
+		headings={suggestedHeadings}
+		data={[suggestedPerson]}
+		url={suggestedUrl}
+		on:message={handleSelected}
+	/>
+	<p class="text-gray-500 text-center py-8 text-xl">
+		- OR - <br /> Select a database file manually
+	</p>
+{/if}
+{#if data.length > 0}
+	<BigTable {headings} {data} {url} on:message={handleSelect} />
+{:else}
+	<p class="text-gray-500 text-center py-8 text-xl">
+		No databases found, please ensure database files are in the folder above.
+	</p>
+{/if}

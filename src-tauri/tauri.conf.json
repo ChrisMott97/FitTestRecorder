@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "RPAVerify",
-    "version": "0.1.0"
+    "version": "1.0.0"
   },
   "tauri": {
     "allowlist": {
@@ -64,7 +64,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-          "https://tauri-update-server.chrisamott97.workers.dev/v1/{{current_version}}"
+          "https://gist.githubusercontent.com/ChrisMott97/af17cdc32ad4df407249ff7a3ab49c31/raw/"
       ],
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ4Qzk0OEYxQTgzQzIzMjMKUldRakl6eW84VWpKMk9uR0orMk45M0xROW9xbzRVcVRWeFBVS1RPZTVnVHRKMS9EM1BGUHpLbzIK"
