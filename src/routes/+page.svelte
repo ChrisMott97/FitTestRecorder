@@ -97,12 +97,14 @@
 
 		//TODO: change database adapter to be able to close connection
 		const dirFiles = await fs.readDir(postPublicPath, { dir: fs.BaseDirectory.Public });
-		console.log(dirFiles);
 		for (const file of dirFiles) {
+			info(file.path);
 			if (file.path.split('.').at(-1) === 'db') {
+				info('Database found!');
 				potentialDatabases.push(file.path);
 			}
 		}
+		info(potentialDatabases.toString());
 		//TODO: show only unverified records as suggested
 		for (const potentialDatabase of potentialDatabases) {
 			// let db = Database.get('sqlite:' + potentialDatabase);
@@ -113,11 +115,23 @@
 			// }
 			const db = await SQLite.open(potentialDatabase);
 
+			try {
+				info('Attempting to read: ' + potentialDatabase);
+				const version: Array<{ dbVersion: number }> = await db.select(
+					'select dbVersion from dbInfo limit 1'
+				);
+				if (version[0].dbVersion != 4) throw Error('Wrong database version!');
+			} catch (e) {
+				error(e.toString());
+				continue;
+			}
+
 			//TODO: handle not an sqlite file
 
 			const latestTestArray: Array<FitTestField> = await db.select(
 				'SELECT id, firstName, lastName, company, location, testDate, description from fitTestRecord where overallPass = 1 order by testDate desc limit 1'
 			);
+
 			if (latestTestArray.length == 0) continue;
 			info('Landing page: successful latest test find ' + potentialDatabase);
 
