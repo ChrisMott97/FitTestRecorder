@@ -88,6 +88,7 @@
 		}
 	};
 
+
 	async function gatherData() {
 		info('landing: gathering data');
 		databases = [];
@@ -96,12 +97,30 @@
 		potentialDatabases = [];
 
 		//TODO: check children one level deep 
-		const dirFiles = await fs.readDir(postPublicPath, { dir: fs.BaseDirectory.Public });
+		const dirFiles = await fs.readDir(postPublicPath, { dir: fs.BaseDirectory.Public, recursive: true });
 		for (const file of dirFiles) {
 			info('checking '+file.path);
-			if (file.path.split('.').at(-1) === 'db') {
-				info('database found');
-				potentialDatabases.push(file.path);
+			if (file.children){
+				for (const childFile of file.children){
+					if (childFile.children){
+						for (const subChildFile of childFile.children){
+							if (subChildFile.path.split('.').at(-1) === 'db' && !subChildFile.children) {
+								info('database found');
+								potentialDatabases.push(subChildFile.path);
+							}
+						}
+					}else{
+						if (childFile.path.split('.').at(-1) === 'db') {
+							info('database found');
+							potentialDatabases.push(childFile.path);
+						}
+					}
+				}
+			}else{
+				if (file.path.split('.').at(-1) === 'db') {
+					info('database found');
+					potentialDatabases.push(file.path);
+				}
 			}
 		}
 		if(potentialDatabases.length > 0){
