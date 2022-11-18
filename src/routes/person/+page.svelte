@@ -62,20 +62,20 @@
 	let signed = false;
 
 	function toggleLine(lineIndex: number) {
-		info("Person page: toggle line "+lineIndex)
+		info("person: toggle line "+lineIndex)
 		linesDisabled[lineIndex] = !linesDisabled[lineIndex];
 	}
 
 	async function save() {
-		info("Person page: saving")
+		info("person page: saving")
 		const imgUrl = signaturePad.toDataURL();
 
 		// const file = await fs.readDir(postPublicPath, { dir: fs.BaseDirectory.Public });
 		const newDir = postPublicPath + sep + db.path.split(sep).at(-1)?.split('.').at(0);
 		fs.exists(newDir, { dir: fs.BaseDirectory.Public }).then((exists) => {
 			if (!exists) {
-				info("Person page: directory doesn't exist for signatures")
-				fs.createDir(newDir, { dir: fs.BaseDirectory.Public });
+				info("directory doesn't exist for signatures")
+				fs.createDir(newDir, { dir: fs.BaseDirectory.Public, recursive: true });
 			}
 		});
 
@@ -83,7 +83,7 @@
 			.then((res) => res.blob())
 			.then((blob) => {
 				blob.arrayBuffer().then((aB) => {
-					info("Person page: writing signature png")
+					info("person: writing signature png")
 					fs.writeBinaryFile(
 						newDir +
 							sep +
@@ -105,7 +105,7 @@
 		const { maskManufacturer, maskModel, maskStyle, ffPassLevel, n95 } = maskInfo[0];
 
 		// update mask details
-		info("Person page: updating mask info")
+		info("updating mask info")
 		await db.execute(
 			'UPDATE fitTestRecord SET maskSize = $1, maskManufacturer = $2, maskModel = $3, maskStyle = $4, maskDescription = $5, ffPassLevel = $6, n95 = $7 WHERE id = $8',
 			[
@@ -119,7 +119,7 @@
 				fitTestPerson.id
 			]
 		);
-		info("Person page: updating fitTestRecord info")
+		info("updating fitTestRecord info")
 
 		// update personal details on all records
 		await db.execute(
@@ -155,7 +155,7 @@
 				idNumberVariant3 = idNumberSplitVariant3.join('/');
 			}
 		}
-		info("Person page: updating peopleRecord info")
+		info("updating peopleRecord info")
 
 		const success = await db.execute(
 			'UPDATE peopleRecord SET firstName = $1, lastName = $2, company = $3, location = $4 WHERE firstName = $5 AND lastName = $6 AND company = $7 AND location = $8 AND (idNumber = $9 OR idNumber = $10 OR idNumber = $11 OR idNumber = $12)',
@@ -176,7 +176,7 @@
 		);
 
 		if (!success) {
-			info("Person page: updating peopleRecord info backup")
+			info("updating peopleRecord info backup")
 
 			const success = await db.execute(
 				'UPDATE peopleRecord SET firstName = $1, lastName = $2, company = $3, location = $4 WHERE firstName = $5 AND lastName = $6 AND company = $7 AND location = $8',
@@ -192,13 +192,13 @@
 				]
 			);
 			if (!success) {
-				error("Person page: Failed backup update")
+				error("failed backup update")
 			}
 		}
 	}
 
 	async function initialise(){
-		info("Person page: load initial information")
+		info("person: load initial information")
 		testState.subscribe(async (newTestState) => {
 			const id = newTestState.person.id;
 			db = await SQLite.open(newTestState.database);
@@ -231,13 +231,13 @@
 	});
 
 	function clear() {
-		info("Person page: signature pad cleared")
+		info("person: signature pad cleared")
 		signed = false;
 		signaturePad.clear();
 	}
 
 	function reset(){
-		info("Person page: reset details")
+		info("person: reset details")
 		linesDisabled = [false, false, false]
 		initialise();
 	}

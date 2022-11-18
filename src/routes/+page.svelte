@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { open } from '@tauri-apps/api/dialog';
+	import { open, message } from '@tauri-apps/api/dialog';
 	import { fs, path } from '@tauri-apps/api';
 	import { documentDir, publicDir, sep } from '@tauri-apps/api/path';
 	import { testState } from './stores';
@@ -89,57 +89,57 @@
 	};
 
 	async function gatherData() {
-		info('Landing page: gathering data');
+		info('landing: gathering data');
 		databases = [];
 		data = [];
 		newData = [];
 		potentialDatabases = [];
 
-		//TODO: change database adapter to be able to close connection
+		//TODO: check children one level deep 
 		const dirFiles = await fs.readDir(postPublicPath, { dir: fs.BaseDirectory.Public });
 		for (const file of dirFiles) {
-			info(file.path);
+			info('checking '+file.path);
 			if (file.path.split('.').at(-1) === 'db') {
-				info('Database found!');
+				info('database found');
 				potentialDatabases.push(file.path);
 			}
 		}
-		info(potentialDatabases.toString());
-		//TODO: show only unverified records as suggested
+		if(potentialDatabases.length > 0){
+			info(potentialDatabases.toString());
+		}else{
+			error("no potential databases found")
+		}
+		//TODO: show only unverified records as suggested - give option?
 		for (const potentialDatabase of potentialDatabases) {
-			// let db = Database.get('sqlite:' + potentialDatabase);
-			// try {
-			// 	await db.select("select 1");
-			// } catch (error) {
-			// 	db = await Database.load('sqlite:' + potentialDatabase)
-			// }
 			const db = await SQLite.open(potentialDatabase);
 
 			try {
-				info('Attempting to read: ' + potentialDatabase);
+				info('reading: ' + potentialDatabase);
 				const version: Array<{ dbVersion: number }> = await db.select(
 					'select dbVersion from dbInfo limit 1'
 				);
-				if (version[0].dbVersion != 4) throw Error('Wrong database version!');
-			} catch (e) {
+				// update to use number from a config file for supported version
+				if (version[0].dbVersion != 4) throw Error('wrong database version');
+			} catch (e: Error | any) {
 				error(e.toString());
 				continue;
 			}
 
-			//TODO: handle not an sqlite file
-
 			const latestTestArray: Array<FitTestField> = await db.select(
 				'SELECT id, firstName, lastName, company, location, testDate, description from fitTestRecord where overallPass = 1 order by testDate desc limit 1'
 			);
-
-			if (latestTestArray.length == 0) continue;
-			info('Landing page: successful latest test find ' + potentialDatabase);
+			if (latestTestArray.length == 0){
+				error('no latest test found in ' + potentialDatabase);
+				continue;
+			}
 
 			const companiesField: Array<{ company: string }> = await db.select(
 				'select distinct company from fitTestRecord'
 			);
-			if (companiesField.length == 0) continue;
-			info('Landing page: successful companies find ' + potentialDatabase);
+			if (companiesField.length == 0){
+				error('no companies found in ' + potentialDatabase);
+				continue;
+			}
 
 			const latestTest: FitTestField = latestTestArray[0];
 			latestTest.firstName = toTitleCase(latestTest.firstName);
@@ -192,8 +192,8 @@
 		const idx = e.detail.number;
 		testState.update((n) => {
 			n.database = databases[idx];
-			info('Landing page: Selected a database');
-			info('Landing page: State update: ' + JSON.stringify(n));
+			info('selected database: '+n.database);
+			info('state update: ' + JSON.stringify(n));
 			return n;
 		});
 	}
@@ -202,8 +202,9 @@
 		testState.update((n) => {
 			n.database = suggestedPerson.url;
 			n.person.id = suggestedPerson.id;
-			info('Landing page: Selected suggested person + database');
-			info('Landing page: State updated' + JSON.stringify(n));
+			info('selected person: '+suggestedPerson);
+			info('selected database: '+n.database);
+			info('state updated: ' + JSON.stringify(n));
 			return n;
 		});
 	}
@@ -211,39 +212,70 @@
 	async function openFolder(event: Event) {
 		// opens a file using the default program:
 		if (event.shiftKey) {
-			info('Landing page: Opening logs folder');
+			info('opening logs folder');
 			await openInExplorer(await path.logDir());
 		} else {
-			info('Landing page: Opening database folder');
+			info('opening database folder');
 			const url = (await path.publicDir()) + postPublicPath;
-			fs.exists(postPublicPath, { dir: fs.BaseDirectory.Public }).then((exists) => {
-				if (!exists) {
-					info("Landing page: directory doesn't exist for databases");
-					fs.createDir(postPublicPath, { dir: fs.BaseDirectory.Public });
-				}
-			});
-			openInExplorer(url).then(console.log).catch(console.log);
+			const fitproExists = await fs.exists(postPublicPath, { dir: fs.BaseDirectory.Public })
+			if (!fitproExists) {
+				info("directory doesn't exist for databases; creating");
+				fs.createDir(postPublicPath, { dir: fs.BaseDirectory.Public, recursive: true });
+			}
+			openInExplorer(url);
+		}
+	}
+
+	async function findDatabase(){
+		const selected = await open({
+		multiple: false,
+		filters: [{
+			name: 'Database',
+			extensions: ['db']
+		}]
+		});
+
+		if (selected != null && typeof(selected) == "string") {
+			const db = await SQLite.open(selected);
+			try {
+				info('reading from browse dialog: ' + selected);
+				const version: Array<{ dbVersion: number }> = await db.select(
+					'select dbVersion from dbInfo limit 1'
+				);
+				// update to use number from a config file for supported version
+				if (version[0].dbVersion != 4) throw Error('wrong database version');
+
+				testState.update((n) => {
+					n.database = selected;
+					info('selected database: '+n.database);
+					info('state update: ' + JSON.stringify(n));
+					return n;
+				});
+				goto('/people')
+			} catch (e: Error | any) {
+				error(e.toString());
+				await message('Database is not valid or is wrong version', { title: 'Database Check', type: 'error' });
+			}
 		}
 	}
 </script>
 
 <Breadcrumb active={1} />
 <div class="py-4">
-	{#if suggestedPerson.visible.database}
-		<p class="text-gray-500 text-center pt-2 text-xl">
-			The suggested test below is the last test done - if this isn't up to date, click the Refresh
-			button.
-		</p>
-		<p class="text-gray-500 text-center pb-2 text-m">
-			If it is highlighted, it has already been verified.
-		</p>
-	{/if}
 	<div class="text-left ml-20">
 		<button on:click={gatherData} class="border py-2 px-6 rounded" type="button">Refresh</button>
 		<button on:click={openFolder} class="border py-2 px-6 rounded" type="button"
 			>Open Database and Signatures Folder</button
 		>
 	</div>
+	{#if suggestedPerson.visible.database}
+		<p class="text-gray-500 ml-20 pt-2 text-xl">
+			Option 1: Select the suggested test to verify
+		</p>
+		<p class="text-gray-500 ml-20 pb-2 text-m">
+			Green highlighted means it is verified already
+		</p>
+	{/if}
 </div>
 {#if suggestedPerson.visible.database}
 	<BigTable
@@ -252,8 +284,8 @@
 		url={suggestedUrl}
 		on:message={handleSelected}
 	/>
-	<p class="text-gray-500 text-center py-8 text-xl">
-		- OR - <br /> Select a database file manually
+	<p class="text-gray-500 ml-20 py-8 text-xl">
+		Option 2: Select a database file
 	</p>
 {/if}
 {#if data.length > 0}
@@ -263,3 +295,7 @@
 		No databases found, please ensure database files are in the folder above.
 	</p>
 {/if}
+
+<div class="text-left ml-20 py-8">
+	<button on:click={findDatabase} class="border py-2 px-6 rounded" type="button">Browse for database file</button>
+</div>

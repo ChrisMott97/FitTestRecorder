@@ -45,6 +45,7 @@
 	const url = '/person';
 
 	onMount(async () => {
+		info("people: loading list of people")
 		testState.subscribe(async (newTestState) => {
 			let databaseURL = newTestState.database;
 
@@ -65,7 +66,7 @@
 					}
 				});
 			}
-			info("People page: Gather people: "+JSON.stringify(newData))
+			info("gathered people: "+JSON.stringify(newData))
 			data = newData;
 		});
 	});
@@ -76,7 +77,7 @@
 
 		testState.update((n) => {
 			n.person.id = id;
-			info("People page: State update: "+JSON.stringify(n))
+			info("state update: "+JSON.stringify(n))
 			return n;
 		});
 	}

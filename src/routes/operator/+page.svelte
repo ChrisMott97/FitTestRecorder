@@ -46,13 +46,13 @@
 	let warning: boolean = false;
 
 	async function save() {
-		info("Operator page: saving")
+		info("operator: saving")
 		const imgData = signaturePad.toData();
 		const newDir = postConfigPath;
 		if (newSignature) {
 			fs.exists(newDir, { dir: fs.BaseDirectory.Config }).then((dir) => {
 				if (!dir) {
-					fs.createDir(newDir, { dir: fs.BaseDirectory.Config });
+					fs.createDir(newDir, { dir: fs.BaseDirectory.Config, recursive: true });
 				}
 				fs.writeTextFile(newDir + sep + 'settings.json', JSON.stringify(imgData), {
 					dir: fs.BaseDirectory.Config
@@ -68,10 +68,9 @@
 				const newDir = postPublicPath + sep + db.path.split(sep).at(-1)?.split('.').at(0);
 				fs.exists(newDir, { dir: fs.BaseDirectory.Public }).then((exists) => {
 					if (!exists) {
-						fs.createDir(newDir, { dir: fs.BaseDirectory.Public });
+						fs.createDir(newDir, { dir: fs.BaseDirectory.Public, recursive: true });
 					}
 				});
-				console.log(res)
 				fetch(imgUrl)
 					.then((res) => res.blob())
 					.then((blob) => {
@@ -95,7 +94,6 @@
 			[note, 'verified', id]
 		);
 
-		console.log('Success: ', success);
 	}
 
 	onMount(async () => {
@@ -108,7 +106,7 @@
 		const newDir = postConfigPath;
 		fs.exists(newDir, { dir: fs.BaseDirectory.Config }).then((dir) => {
 			if (!dir) {
-				fs.createDir(newDir, { dir: fs.BaseDirectory.Config });
+				fs.createDir(newDir, { dir: fs.BaseDirectory.Config, recursive: true });
 			}
 			fs.exists(newDir + sep + 'settings.json', { dir: fs.BaseDirectory.Config }).then(
 				(settingsExist) => {
@@ -128,8 +126,6 @@
 			if (newTestState.person.id == 0) {
 				return;
 			}
-			console.log('subscribing');
-			console.log(newTestState.person.id);
 			id = newTestState.person.id;
 			db = await SQLite.open(newTestState.database);
 
@@ -178,12 +174,11 @@
 					break;
 				}
 			}
-			console.log(exercises);
 		});
 	});
 
 	function clear() {
-		info("Operator page: clear signature")
+		info("operator: clear signature")
 		signed = false;
 		signaturePad.clear();
 	}
